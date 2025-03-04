@@ -1,10 +1,11 @@
 /**
  * @name PingLogger
- * @version 1.0.8
+ * @version 1.0.9
  * @description Notification logger
  * @author notfence
+ * @source https://github.com/notfence/BDplugins/tree/main/Plugins/PingLogger
  */
-
+ 
 // Определяем словарь переводов
 const i18n = (() => {
   const lang = navigator.language.startsWith("ru") ? "ru" : "en";
