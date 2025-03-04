@@ -1,5 +1,5 @@
 # PingLogger
-version 1.0.8 (initial)
+version 1.0.9
 # Features
   * Logs any messages in which you are mentioned
   * Tap to sender name to copy his ID
