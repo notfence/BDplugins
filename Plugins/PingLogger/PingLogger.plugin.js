@@ -4,6 +4,7 @@
  * @description Logs any messages in which you are mentioned (except @everyone and role mentioning)
  * @author notfence
  * @source https://github.com/notfence/BDplugins/tree/main/Plugins/PingLogger
+ * @updateurl https://raw.githubusercontent.com/notfence/BDplugins/refs/heads/main/Plugins/PingLogger/PingLogger.plugin.js
  */
 //type = release
 
