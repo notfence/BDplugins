@@ -1,5 +1,5 @@
 # PingLogger
-version 1.1.0
+version 1.1.0 Legacy (latest stable build)
 # Features
   * Logs any messages in which you are mentioned (except @everyone and role mentioning)
   * Tap to sender name to copy his ID
