@@ -1,5 +1,5 @@
 /**
- * @name PingLoggerDEV
+ * @name PingLogger
  * @version 1.1.1 beta1
  * @description Logs any messages in which you are mentioned (except @everyone and role mentioning)
  * @author notfence
