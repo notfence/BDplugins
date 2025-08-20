@@ -3,6 +3,7 @@
  * @version 1.1.0LEGACY
  * @description Logs any messages in which you are mentioned (except @everyone and role mentioning)
  * @author notfence
+ * @authorId 1176524761686364226
  * @source https://github.com/notfence/BDplugins/tree/main/Plugins/PingLogger
  * @updateurl https://raw.githubusercontent.com/notfence/BDplugins/refs/heads/main/Plugins/PingLogger/PingLogger.plugin.js
  */
@@ -432,3 +433,4 @@ class PingLogger {
 }
 
 module.exports = PingLogger;
+
