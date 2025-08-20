@@ -1,7 +1,7 @@
 /**
  * @name ParanoicVC
- * @version 1.0.1 (39)
- * @description Shows a confirmation window when trying to connect to a voice/voice channel.
+ * @version 1.0.2 (40)
+ * @description Shows a confirmation window when trying to connect to a voice/stage channel.
  * @author notfence
  * @authorId 1176524761686364226
  * @source https://github.com/notfence/BDplugins/tree/main/Plugins/ParanoicVC
@@ -26,13 +26,13 @@ class ParanoicVC {
         dontShow: "Don't ask again for this channel",
         resetChannelsName: "Reset Saved Channels",
         resetChannelsNote: "Clears channels for which you selected “Don't ask again”.",
-        resetButtonLabel: "Reset list",
+        resetButtonLabel: "Reset",
         resetDone: "Ignored channels cleared."
       },
       ru: {
         pluginName: "ParanoicVC",
         enablePlugin: "Включить ParanoicVC",
-        enablePluginNote: "Показывает окно подтверждения перед подключением к голосовым/сценовым каналам.",
+        enablePluginNote: "Показывает окно подтверждения перед подключением к голосовым каналам, трибунам.",
         confirmTitle: "Подтвердите подключение",
         confirmJoin: "Вы действительно хотите подключиться к «{name}»?",
         yes: "Да",
@@ -184,3 +184,4 @@ class ParanoicVC {
 
 
 module.exports = ParanoicVC;
+
