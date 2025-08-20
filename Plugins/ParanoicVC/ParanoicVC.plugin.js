@@ -3,6 +3,7 @@
  * @version 1.0.1 (39)
  * @description Shows a confirmation window when trying to connect to a voice/voice channel.
  * @author notfence
+ * @authorId 1176524761686364226
  * @source https://github.com/notfence/BDplugins/tree/main/Plugins/ParanoicVC
  */
 const { Webpack, Data, UI, Patcher, React, DOM } = BdApi;
@@ -180,5 +181,6 @@ class ParanoicVC {
     });
   }
 }
+
 
 module.exports = ParanoicVC;
