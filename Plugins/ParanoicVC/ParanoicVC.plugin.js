@@ -1,6 +1,6 @@
 /**
  * @name ParanoicVC
- * @version 1.0.0 (38)
+ * @version 1.0.1 (39)
  * @description Shows a confirmation window when trying to connect to a voice/voice channel.
  * @author notfence
  * @source https://github.com/notfence/BDplugins/tree/main/Plugins/ParanoicVC
@@ -39,7 +39,7 @@ class ParanoicVC {
         dontShow: "Больше не спрашивать для этого канала",
         resetChannelsName: "Сброс сохранённых каналов",
         resetChannelsNote: "Очищает список каналов, для которых выбрано «Больше не спрашивать».",
-        resetButtonLabel: "Сбросить список",
+        resetButtonLabel: "Очистить",
         resetDone: "Список игнорируемых каналов очищен."
       }
     };
