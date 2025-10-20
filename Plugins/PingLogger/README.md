@@ -29,4 +29,5 @@ To start logging messages just turn on the plugin and leave it. It collect messa
 * (If it's possible) add server name in notifications
 
 # Issues
+* problems with modal windowm when trying to see saved ping: scroll issues on beta plugin, if it's affects you, switch to legacy one!
 Didn't found one! If you did, feel free to report on [Issues page](https://github.com/notfence/BDplugins/issues)!
