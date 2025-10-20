@@ -17,7 +17,9 @@ version v1.0.2 (build 40)
 ![pic1](https://github.com/user-attachments/assets/216a7124-511f-4c1f-a1d4-f248da77f218) ![pic2](https://github.com/user-attachments/assets/e9947ea6-8a58-4d2c-97a7-0e077cbd49d4)
 
 # TO DO
--
+–
 
 # Issues
-Didn't found one! If you did, feel free to report on [Issues page](https://github.com/notfence/BDplugins/issues)!
+* A confirmation window appears when you trying to switch between multiple screen shares
+
+If you found more, feel free to report on [Issues page](https://github.com/notfence/BDplugins/issues)!
