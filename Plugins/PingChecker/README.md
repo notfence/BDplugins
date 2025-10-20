@@ -7,7 +7,7 @@ version v1.0.0
 * (v1.0.0) - initial release
 
 # TO DO
--
+* fix showing "unknown" intead of url when user in VC
 
 # Issues
 Didn't found one! If you did, feel free to report on [Issues page](https://github.com/notfence/BDplugins/issues)!
