@@ -1,6 +1,6 @@
 /**
  * @name PingChecker
- * @version 1.0.0
+ * @version 1.0.1
  * @description Check your latency with /ping command
  * @author notfence
  * @authorId 1176524761686364226
@@ -8,113 +8,66 @@
  */
 
 module.exports = class PingCommand {
-    start() {
-        this.command = {
-            id: 'ping',
-            name: 'ping',
-            description: 'Check ping to the current Discord server',
-            options: [],
-            execute: async () => {
-                const { ping, url } = await this.getPing();
-                const pingText = (typeof ping === 'number') ? `${ping} ms` : String(ping);
-                const embed = {
-                    title: 'Ping',
-                    description: `🏓 Pong! ${pingText}\n${url}`,
-                    timestamp: new Date().toISOString()
-                };
-                return { embeds: [embed] };
-            },
-            predicate: () => true,
-        };
-        BdApi.Commands.register(this.constructor.name, this.command);
+  start() {
+    this.command = {
+      id: 'ping',
+      name: 'ping',
+      description: 'Check ping to the current Discord server',
+      options: [],
+      execute: async () => {
+        const { ping, url, voiceLastPing } = await this.getPing();
+        let desc = `🏓 Pong! ${typeof ping === 'number' ? `${ping} ms` : ping}\n${url}`;
+        if (typeof voiceLastPing === 'number') desc += `\nVoice ping: ${Math.round(voiceLastPing)} ms`;
+        return { embeds: [{ title: 'Ping', description: desc, timestamp: new Date().toISOString() }] };
+      },
+      predicate: () => true,
+    };
+    BdApi.Commands.register(this.constructor.name, this.command);
+  }
+
+  stop() {
+    try { BdApi.Commands.unregister(this.constructor.name, this.command.id); } catch {}
+  }
+
+  async getPing() {
+    const { Webpack } = BdApi;
+    const safeGet = (o, p) => { try { return p.split('.').reduce((a, k) => a?.[k], o); } catch {} };
+    const pingKeys = ['_ping','ping','latency','latencyMs','heartbeatLatency','heartbeatPing','latency_ms','_latency','wsPing','rtpPing'];
+    const urlPaths = ['url','_url','_ws.url','ws.url','_socket.remoteAddress','remoteAddress','_connection.url','connection.url','transport.ws.url','transport._ws.url','socketURL','gatewayURL','endpoint'];
+    let ping = 'unknown', url = 'unknown', voiceLastPing;
+
+    try {
+      const store = Webpack.getModule(m => m && (m.getSocket || m.getConnection));
+      let socket = store?.getSocket?.() || store?.getConnection?.() || Webpack.getModule(m => (m.ws || m._ws || m.socket || m._socket))?.ws;
+      if (socket) {
+        for (const k of pingKeys) { const v = safeGet(socket, k); if (typeof v === 'number' && v >= 0) { ping = Math.round(v); break; } }
+        if (ping === 'unknown' && typeof socket.getLatency === 'function') { const v = socket.getLatency(); if (typeof v === 'number') ping = Math.round(v); }
+        for (const p of urlPaths) { const v = safeGet(socket, p); if (typeof v === 'string' && v) { url = v; break; } }
+      }
+    } catch {}
+
+    try {
+      const RTC = Webpack.getModule(m => m && (m.getAveragePing || m.getLastPing || m.getVoiceServer || m.getVoiceServers || m.getVoiceConnection));
+      if (RTC) {
+        const last = RTC.getLastPing?.(), avg = RTC.getAveragePing?.();
+        if (typeof last === 'number') voiceLastPing = last; else if (typeof avg === 'number') voiceLastPing = avg;
+        let vs = RTC.getVoiceServer?.() || (RTC.getVoiceServers?.() || [])[0] || RTC.getVoiceConnection?.();
+        const candidate = vs?.endpoint || vs?.url || vs?.host || safeGet(vs, 'server.endpoint') || safeGet(vs, 'connection.endpoint');
+        if ((!url || url === 'unknown') && candidate) url = candidate;
+      }
+    } catch {}
+
+    if (ping === 'unknown') {
+      try {
+        const target = url !== 'unknown' ? url : 'https://discord.com/api/v9/gateway';
+        const s = Date.now(); const c = new AbortController(); const t = setTimeout(() => c.abort(), 5000);
+        await fetch(target, { method: 'HEAD', mode: 'no-cors', signal: c.signal }).finally(() => clearTimeout(t));
+        ping = Date.now() - s; if (url === 'unknown') url = target;
+      } catch {}
     }
 
-    stop() {
-        BdApi.Commands.unregister(this.constructor.name, this.command.id);
-    }
-
-    /**
-     * Возвращает объект { ping, url }:
-     * - ping: число (ms) или строка 'неизвестно'
-     * - url: строка с адресом/endpoint'ом, который использовался для измерения
-     */
-    async getPing() {
-        const { Webpack } = BdApi;
-        let ping = 'unknown';
-        let url = 'unknown';
-
-        try {
-            // Попытка получить gateway websocket
-            const GatewayConnectionStore = Webpack.getModule(
-                m => typeof m?.getSocket === 'function' && typeof m?.isConnected === 'function'
-            );
-            if (GatewayConnectionStore) {
-                const socket = GatewayConnectionStore.getSocket();
-                if (socket && typeof socket === 'object') {
-                    const possible = ['_ping', 'ping', 'latency', 'latencyMs', 'heartbeatLatency', 'heartbeatPing'];
-                    for (const key of possible) {
-                        const value = socket[key];
-                        if (typeof value === 'number' && value > 0) {
-                            ping = Math.round(value);
-                            break;
-                        }
-                    }
-
-                    // Попытки получить URL из разных полей сокета
-                    url = socket.url
-                        || socket._url
-                        || (socket._ws && socket._ws.url)
-                        || (socket.ws && socket.ws.url)
-                        || (socket._socket && socket._socket.remoteAddress)
-                        || socket.remoteAddress
-                        || url;
-                    // Если URL — объект или другой тип, привести к строке
-                    if (typeof url !== 'string') {
-                        try { url = String(url); } catch(e) { url = 'unknown'; }
-                    }
-                }
-            }
-        } catch (err) {
-            console.error('Failed to read GatewayConnectionStore', err);
-        }
-
-        try {
-            // Попытка получить пинг из модулей RTC (голосовой сервер)
-            const RTCStore = Webpack.getModule(m => typeof m?.getAveragePing === 'function' && typeof m?.getLastPing === 'function');
-            if (RTCStore) {
-                const avg = RTCStore.getAveragePing && RTCStore.getAveragePing();
-                const last = RTCStore.getLastPing && RTCStore.getLastPing();
-                if ((typeof avg === 'number' && avg > 0) || (typeof last === 'number' && last > 0)) {
-                    ping = typeof avg === 'number' && avg > 0 ? Math.round(avg) : Math.round(last);
-                }
-                // Если есть метод получения endpoint/voice server — пробуем
-                if (typeof RTCStore.getVoiceServer === 'function') {
-                    try {
-                        const vs = RTCStore.getVoiceServer();
-                        if (vs) url = vs.endpoint || vs.url || url;
-                    } catch(e) { /* silent */ }
-                }
-            }
-        } catch (err) {
-            console.error('Failed to read RTCStore', err);
-        }
-
-        // Если всё ещё неизвестно — fallback: быстрый HTTP HEAD к gateway endpoint
-        if (ping === 'unknown') {
-            try {
-                const fallbackUrl = 'https://discord.com/api/v9/gateway';
-                const start = Date.now();
-                // HEAD с no-cors — время может быть неточным, но даёт приближение
-                await fetch(fallbackUrl, { method: 'HEAD', mode: 'no-cors' });
-                const end = Date.now();
-                ping = end - start;
-                url = fallbackUrl;
-            } catch (err) {
-                console.error('Failed to check HTTP ping', err);
-                // url останется тем, что удалось получить раньше, либо 'неизвестно'
-            }
-        }
-
-        return { ping, url };
-    }
+    if (!url || typeof url !== 'string') url = 'unknown';
+    if (typeof ping === 'number' && !isFinite(ping)) ping = 'unknown';
+    return { ping, url, voiceLastPing };
+  }
 };
