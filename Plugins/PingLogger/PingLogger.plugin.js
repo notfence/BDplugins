@@ -28,7 +28,8 @@ const i18n = (() => {
       file: "[ФАЙЛ]",
       copyTooltip: "Нажмите, чтобы скопировать ID автора",
       notificationsCleared: "Уведомления очищены",
-      scrollable: "(пролистываемый)"
+      localAccountTooltip: "Ваш локальный аккаунт",
+      messageCopied: "Сообщение скопировано"
     },
     en: {
       description: "Notification logger",
@@ -47,7 +48,8 @@ const i18n = (() => {
       file: "[FILE]",
       copyTooltip: "Click to copy the author's ID",
       notificationsCleared: "Notifications cleared",
-      scrollable: "(scrollable)"
+      localAccountTooltip: "Your local account",
+      messageCopied: "Message copied"
     }
   };
   return translations[lang];
@@ -64,14 +66,29 @@ class PingLogger {
 
   copyText = (text) => {
     const formatted = `<@${text}>`;
-    const showCopied = () => BdApi.UI.showToast(i18n.idCopied(formatted), { type: "info" });
-    const showError = () => BdApi.UI.showToast(i18n.copyError, { type: "error" });
-
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(formatted).then(showCopied).catch(() => this.fallbackCopyText(formatted));
+      navigator.clipboard.writeText(formatted).then(() => BdApi.UI.showToast(i18n.idCopied(formatted), { type: "info" })).catch(() => this.fallbackCopyText(formatted));
     } else {
       this.fallbackCopyText(formatted);
     }
+  };
+
+  copyPlainText = (text) => {
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => BdApi.UI.showToast(i18n.messageCopied, { type: "info" })).catch(() => this._fallbackPlainCopy(text));
+    } else {
+      this._fallbackPlainCopy(text);
+    }
+  };
+
+  _fallbackPlainCopy = (text) => {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); BdApi.UI.showToast(i18n.messageCopied, { type: "info" }); } catch { BdApi.UI.showToast(i18n.copyError, { type: "error" }); }
+    document.body.removeChild(ta);
   };
 
   fallbackCopyText = (text) => {
@@ -91,10 +108,6 @@ class PingLogger {
   start() {
     const UserStore = BdApi.Webpack.getByKeys("getCurrentUser");
     if (!UserStore) return;
-    const currentUser = UserStore.getCurrentUser();
-    if (!currentUser) return;
-    const currentUserId = String(currentUser.id);
-    const currentUserName = currentUser.username || "";
     const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
     const videoExtensions = [".mp4", ".mov", ".webm", ".avi"];
     const Dispatcher = BdApi.Webpack.getByKeys("dispatch");
@@ -107,6 +120,12 @@ class PingLogger {
         if (!payload || payload.type !== "MESSAGE_CREATE") return;
         const message = payload.message;
         if (!message) return;
+
+        const UserStoreLocal = BdApi.Webpack.getByKeys("getCurrentUser");
+        const currentUser = UserStoreLocal.getCurrentUser();
+        if (!currentUser) return;
+        const currentUserId = String(currentUser.id);
+        const currentUserName = currentUser.username || "";
 
         let isMentioned = false;
         try {
@@ -166,9 +185,9 @@ class PingLogger {
 
         try {
           if (Array.isArray(message.attachments) && message.attachments.length) {
-            message.attachments.forEach(att => {
+            message.attachments.forEach(attachment => {
               let label = i18n.file;
-              const filename = String(att?.filename || "").toLowerCase();
+              const filename = String(attachment.filename || "").toLowerCase();
               if (imageExtensions.some(ext => filename.endsWith(ext))) label = i18n.image;
               else if (videoExtensions.some(ext => filename.endsWith(ext))) label = i18n.video;
               processedText = (processedText ? processedText + " " : "") + label;
@@ -220,188 +239,265 @@ class PingLogger {
     BdApi.Patcher.unpatchAll("PingLogger");
   }
 
-  getSettingsPanel() {
-    const panel = document.createElement("div");
-    panel.style.padding = "10px";
+  _createLargeModal(notificationsToShow) {
+    if (document.getElementById("pinglogger-modal-overlay")) return;
 
-    const style = document.createElement("style");
-    style.textContent = `
-.setting-container{margin-bottom:15px;padding-bottom:15px}
-.setting-container:not(:last-child){border-bottom:1px solid black}
-.setting-title{font-size:16px;color:#ffffff;margin-bottom:5px}
-.toggle-wrapper{display:flex;align-items:center;justify-content:space-between}
-.toggle-label{font-size:16px;color:#ffffff}
-.switch{position:relative;display:inline-block;width:50px;height:24px}
-.switch input{opacity:0;width:0;height:0}
-.slider-switch{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#ccc;transition:.4s;border-radius:24px}
-.slider-switch:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background-color:white;transition:.4s;border-radius:50%}
-input:checked+.slider-switch{background-color:#7289da}
-input:checked+.slider-switch:before{transform:translateX(26px)}
-.slider-container{display:flex;flex-direction:column;align-items:center}
-.slider-inner{position:relative;width:50%}
-.slider-inner input[type="range"]{width:100%;cursor:pointer}
-.current-value{position:absolute;top:37px;left:50%;transform:translate(-50%,-50%);color:#ffffff;font-size:16px;pointer-events:none}
-.slider-labels{width:50%;display:flex;justify-content:space-between;margin-top:1px;font-size:13px;color:#ffffff}
-.discord-button{background-color:#7289da;color:white;border:none;border-radius:3px;padding:8px 16px;font-size:14px;cursor:pointer;margin-top:15px;margin-bottom:1px}
-.discord-button:hover{background-color:#5b6eae}
-`;
-    panel.appendChild(style);
+    // ensure we have a safe copy and show newest first
+    notificationsToShow = (notificationsToShow || []).slice().reverse();
 
-    const toggleContainer = document.createElement("div");
-    toggleContainer.className = "setting-container";
+    // inject styles for animation if not present
+    if (!document.getElementById("pinglogger-modal-styles")) {
+      const s = document.createElement("style");
+      s.id = "pinglogger-modal-styles";
+      s.textContent = `
+      @keyframes pinglogger-fade-in { from { opacity: 0 } to { opacity: 1 } }
+      @keyframes pinglogger-pop { from { transform: translateY(8px) scale(0.99); opacity: 0 } to { transform: translateY(0) scale(1); opacity: 1 } }
+      @keyframes pinglogger-fade-out { from { opacity: 1 } to { opacity: 0 } }
+      @keyframes pinglogger-pop-out { from { transform: translateY(0) scale(1); opacity: 1 } to { transform: translateY(8px) scale(0.98); opacity: 0 } }
+      .pinglogger-copy-btn { position: absolute; right: 10px; bottom: 10px; display: none; padding: 4px 6px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; background: rgba(0,0,0,0.35); color: var(--text-normal, #ffffff); }
+      `;
+      document.head.appendChild(s);
+    }
 
-    const toggleWrapper = document.createElement("div");
-    toggleWrapper.className = "toggle-wrapper";
-
-    const toggleLabel = document.createElement("div");
-    toggleLabel.className = "toggle-label";
-    toggleLabel.textContent = i18n.toggle;
-
-    const switchLabel = document.createElement("label");
-    switchLabel.className = "switch";
-
-    const switchInput = document.createElement("input");
-    switchInput.type = "checkbox";
-    switchInput.checked = Boolean(this.enabled);
-    switchInput.addEventListener("change", e => {
-      this.enabled = e.target.checked;
-      BdApi.Data.save("PingLogger", "enabled", this.enabled);
+    const overlay = document.createElement("div");
+    overlay.id = "pinglogger-modal-overlay";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      inset: "0",
+      background: "rgba(0,0,0,0.6)",
+      zIndex: 99999,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      animation: "pinglogger-fade-in .12s ease-out"
     });
 
-    const switchSlider = document.createElement("span");
-    switchSlider.className = "slider-switch";
-
-    switchLabel.appendChild(switchInput);
-    switchLabel.appendChild(switchSlider);
-    toggleWrapper.appendChild(toggleLabel);
-    toggleWrapper.appendChild(switchLabel);
-    toggleContainer.appendChild(toggleWrapper);
-    panel.appendChild(toggleContainer);
-
-    const sliderContainer = document.createElement("div");
-    sliderContainer.className = "setting-container";
-
-    const sliderTitle = document.createElement("div");
-    sliderTitle.className = "setting-title";
-    sliderTitle.textContent = i18n.sliderTitle;
-    sliderContainer.appendChild(sliderTitle);
-
-    const sliderInner = document.createElement("div");
-    sliderInner.className = "slider-inner";
-
-    const sliderInput = document.createElement("input");
-    sliderInput.type = "range";
-    sliderInput.min = 3;
-    sliderInput.max = 100;
-    sliderInput.value = this.displayLimit;
-
-    sliderInner.appendChild(sliderInput);
-
-    const currentValueLabel = document.createElement("div");
-    currentValueLabel.className = "current-value";
-    currentValueLabel.textContent = sliderInput.value;
-    sliderInner.appendChild(currentValueLabel);
-    sliderContainer.appendChild(sliderInner);
-
-    const sliderLabels = document.createElement("div");
-    sliderLabels.className = "slider-labels";
-    const minLabel = document.createElement("span");
-    minLabel.textContent = "3";
-    const maxLabel = document.createElement("span");
-    maxLabel.textContent = "100";
-    sliderLabels.appendChild(minLabel);
-    sliderLabels.appendChild(maxLabel);
-    sliderContainer.appendChild(sliderLabels);
-
-    sliderInput.addEventListener("input", (e) => {
-      currentValueLabel.textContent = e.target.value;
-      this.displayLimit = Number(e.target.value);
-      BdApi.Data.save("PingLogger", "displayLimit", this.displayLimit);
+    const modal = document.createElement("div");
+    modal.id = "pinglogger-modal";
+    Object.assign(modal.style, {
+      width: "min(1000px, 92%)",
+      maxWidth: "1200px",
+      maxHeight: "85vh",
+      background: "var(--background-primary, #2f3136)",
+      borderRadius: "8px",
+      boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+      color: "var(--text-normal, #ffffff)",
+      animation: "pinglogger-pop .18s cubic-bezier(.2,.8,.2,1)"
     });
 
-    panel.appendChild(sliderContainer);
+    const header = document.createElement("div");
+    Object.assign(header.style, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "12px 16px",
+      borderBottom: "1px solid rgba(0,0,0,0.2)"
+    });
 
-    const btnContainer = document.createElement("div");
-    const btnShowNotifications = document.createElement("button");
-    btnShowNotifications.className = "discord-button";
-    btnShowNotifications.textContent = i18n.showNotifications;
+    const title = document.createElement("div");
+    title.textContent = i18n.modalTitle;
+    Object.assign(title.style, { fontSize: "16px", fontWeight: 600 });
 
-    btnShowNotifications.addEventListener("click", () => {
-      const React = BdApi.React;
-      const notificationsToShow = (this.notifications || []).slice(-this.displayLimit);
+    header.appendChild(title);
 
-      const titleElement = React.createElement(
-        "div",
-        { style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" } },
-        React.createElement("span", null, i18n.modalTitle),
-        React.createElement("span", { style: { color: "#999999", fontSize: "11px", position: "absolute", right: "20px" } }, i18n.scrollable)
-      );
+    const content = document.createElement("div");
+    Object.assign(content.style, {
+      padding: "12px",
+      overflowY: "auto",
+      flex: "1 1 auto"
+    });
 
-      const modalContent = React.createElement(
-        "div",
-        { style: { maxHeight: "300px", overflowY: "auto", padding: "10px" } },
-        notificationsToShow.length === 0
-          ? React.createElement("div", { style: { color: "#ffffff" } }, i18n.noNotifications)
-          : notificationsToShow.map((notification, index) =>
-              React.createElement(
-                "div",
-                { key: index, style: { marginBottom: "8px", display: "flex", alignItems: "center" } },
-                React.createElement("span", {
-                  style: { color: "#999999", fontSize: "11px", marginRight: "5px" },
-                  title: (() => {
-                    const now = new Date(notification.timestamp || Date.now());
-                    const pad = n => n.toString().padStart(2, "0");
-                    const hours = pad(now.getHours());
-                    const minutes = pad(now.getMinutes());
-                    const seconds = pad(now.getSeconds());
-                    const day = pad(now.getDate());
-                    const month = pad(now.getMonth() + 1);
-                    const year = now.getFullYear();
-                    const lang = navigator.language.startsWith("ru") ? "ru" : "en";
-                    return lang === "ru"
-                      ? `${hours}:${minutes}:${seconds} ${day}.${month}.${year}`
-                      : `${((+hours % 12) || 12).toString().padStart(2, "0")}:${minutes}:${seconds} ${month}.${day}.${year}`;
-                  })()
-                },
-                  (() => {
-                    const now = new Date(notification.timestamp || Date.now());
-                    const pad = n => n.toString().padStart(2, "0");
-                    const hours = now.getHours();
-                    const minutes = pad(now.getMinutes());
-                    const lang = navigator.language.startsWith("ru") ? "ru" : "en";
-                    if (lang === "ru") return `${pad(hours)}:${minutes}`;
-                    const hours12 = hours % 12 || 12;
-                    return `${hours12.toString().padStart(2, "0")}:${minutes}`;
-                  })()
-                ),
-                React.createElement("span", { style: { color: "#ffffff", marginRight: "5px" } }, notification.accountName),
-                React.createElement("span", {
-                  style: { color: "#7289da", cursor: "pointer", marginRight: "5px" },
-                  title: i18n.copyTooltip,
-                  onClick: () => this.copyText(notification.authorId)
-                }, notification.authorName),
-                React.createElement("span", { style: { color: "#ffffff" } }, ": " + notification.text)
-              )
-            )
-      );
+    if (!notificationsToShow || notificationsToShow.length === 0) {
+      const empty = document.createElement("div");
+      empty.textContent = i18n.noNotifications;
+      Object.assign(empty.style, { color: "var(--text-muted, #b9bbbe)" });
+      content.appendChild(empty);
+    } else {
+      notificationsToShow.forEach((notification) => {
+        const row = document.createElement("div");
+        Object.assign(row.style, { marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px", paddingBottom: "10px", borderBottom: "1px solid rgba(0,0,0,0.12)", position: "relative" });
 
-      BdApi.UI.showConfirmationModal(titleElement, modalContent, {
-        confirmText: i18n.modalConfirm,
-        cancelText: i18n.modalCancel,
-        onCancel: () => {
-          this.notifications = [];
-          BdApi.Data.save("PingLogger", "notifications", this.notifications);
-          BdApi.UI.showToast(i18n.notificationsCleared, { type: "info" });
-        }
+        const time = document.createElement("div");
+        const d = new Date(notification.timestamp || Date.now());
+        const pad = n => n.toString().padStart(2, "0");
+        const hours = pad(d.getHours());
+        const minutes = pad(d.getMinutes());
+        time.textContent = `${hours}:${minutes}`;
+        // full datetime tooltip on hover
+        const seconds = pad(d.getSeconds());
+        const day = pad(d.getDate());
+        const month = pad(d.getMonth() + 1);
+        const year = d.getFullYear();
+        const lang = navigator.language.startsWith("ru") ? "ru" : "en";
+        const full = lang === "ru" ? `${hours}:${minutes}:${seconds} ${day}.${month}.${year}` : `${((+hours % 12) || 12).toString().padStart(2, "0")}:${minutes}:${seconds} ${month}.${day}.${year}`;
+        time.title = full;
+        Object.assign(time.style, { color: "var(--text-muted, #b9bbbe)", fontSize: "12px", minWidth: "56px", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" });
+
+        const main = document.createElement("div");
+        Object.assign(main.style, { display: "flex", flexDirection: "column", gap: "6px", flex: "1 1 auto" });
+
+        const topLine = document.createElement("div");
+        Object.assign(topLine.style, { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" });
+
+        const accountSpan = document.createElement("span");
+        accountSpan.textContent = `(${notification.accountName})`;
+        accountSpan.title = i18n.localAccountTooltip;
+        Object.assign(accountSpan.style, { color: "var(--text-normal, #ffffff)", fontWeight: 600, marginRight: "4px" });
+
+        const authorSpan = document.createElement("span");
+        authorSpan.textContent = notification.authorName;
+        authorSpan.title = i18n.copyTooltip;
+        Object.assign(authorSpan.style, { color: "var(--interactive-accent, #7289da)", cursor: "pointer", userSelect: "none", fontWeight: 600 });
+        authorSpan.addEventListener("click", () => {
+          try { this.copyText(notification.authorId); } catch {}
+        });
+
+        topLine.appendChild(accountSpan);
+        topLine.appendChild(authorSpan);
+
+        const textLine = document.createElement("div");
+        textLine.textContent = notification.text;
+        Object.assign(textLine.style, { color: "var(--text-normal, #ffffff)", whiteSpace: "pre-wrap", background: "var(--background-modifier-hover, rgba(255,255,255,0.02))", padding: "8px", borderRadius: "6px", marginTop: "6px", userSelect: "none", position: "relative" });
+
+        // copy button for message (hidden by default)
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "pinglogger-copy-btn";
+        copyBtn.textContent = "Copy";
+        copyBtn.title = i18n.messageCopied;
+        copyBtn.addEventListener("click", (e) => { e.stopPropagation(); this.copyPlainText(notification.text); });
+
+        // show/hide and enable selection on hover
+        row.addEventListener("mouseenter", () => {
+          copyBtn.style.display = "block";
+          textLine.style.userSelect = "text";
+        });
+        row.addEventListener("mouseleave", () => {
+          copyBtn.style.display = "none";
+          textLine.style.userSelect = "none";
+        });
+
+        main.appendChild(topLine);
+        main.appendChild(textLine);
+
+        row.appendChild(time);
+        row.appendChild(main);
+        row.appendChild(copyBtn);
+        content.appendChild(row);
       });
+    }
+
+    const footer = document.createElement("div");
+    Object.assign(footer.style, { padding: "10px 12px", borderTop: "1px solid rgba(0,0,0,0.2)", display: "flex", justifyContent: "flex-end", gap: "8px" });
+
+    const clearBtn = document.createElement("button");
+    clearBtn.textContent = i18n.modalCancel;
+    Object.assign(clearBtn.style, {
+      minWidth: "110px",
+      padding: "6px 10px",
+      borderRadius: "6px",
+      border: "none",
+      cursor: "pointer",
+      background: "var(--interactive-danger, #f04747)",
+      color: "white",
+      fontWeight: 600
     });
 
-    btnContainer.appendChild(btnShowNotifications);
-    panel.appendChild(btnContainer);
+    const footerClose = document.createElement("button");
+    footerClose.textContent = i18n.modalConfirm;
+    Object.assign(footerClose.style, {
+      minWidth: "90px",
+      padding: "6px 12px",
+      borderRadius: "6px",
+      border: "none",
+      cursor: "pointer",
+      background: "var(--background-secondary, #202225)",
+      color: "var(--text-normal, #ffffff)"
+    });
 
-    return panel;
+    // clear on the left, close on the right
+    footer.appendChild(clearBtn);
+    footer.appendChild(footerClose);
+
+    modal.appendChild(header);
+    modal.appendChild(content);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+
+    let closing = false;
+    function removeModal() {
+      if (closing) return;
+      closing = true;
+      // play reverse animations
+      overlay.style.animation = "pinglogger-fade-out .12s ease-in";
+      modal.style.animation = "pinglogger-pop-out .14s cubic-bezier(.2,.8,.2,1)";
+      const onFinish = () => { try { overlay.remove(); } catch {} document.removeEventListener("keydown", onKeyDown); };
+      // wait for modal animation end then remove
+      modal.addEventListener("animationend", onFinish, { once: true });
+      // fallback: remove after 400ms
+      setTimeout(() => { try { overlay.remove(); } catch {} document.removeEventListener("keydown", onKeyDown); }, 500);
+    }
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") removeModal();
+    };
+
+    // handlers
+    footerClose.addEventListener("click", removeModal);
+
+    clearBtn.addEventListener("click", () => {
+      this.notifications = [];
+      try { BdApi.Data.save("PingLogger", "notifications", this.notifications); } catch {}
+      BdApi.UI.showToast(i18n.notificationsCleared, { type: "info" });
+      // clear content list
+      content.innerHTML = "";
+      const empty = document.createElement("div");
+      empty.textContent = i18n.noNotifications;
+      Object.assign(empty.style, { color: "var(--text-muted, #b9bbbe)" });
+      content.appendChild(empty);
+    });
+
+    // close when clicking outside modal
+    overlay.addEventListener("click", (ev) => {
+      if (ev.target === overlay) removeModal();
+    });
+
+    document.addEventListener("keydown", onKeyDown);
+    document.body.appendChild(overlay);
+  }
+
+  getSettingsPanel() {
+    const UI = BdApi.UI;
+    const Webpack = BdApi.Webpack;
+    const React = BdApi.React;
+
+    const btnClass = (() => {
+      const buttonStates = Webpack.getModule(m => m?.button && m.enabled, { searchExports: false }) || {};
+      const buttonLook = Webpack.getModule(m => m?.button && m.colorBrand && (m.lookFilled || m.lookBlank), { searchExports: false }) || {};
+      return [buttonStates.button, buttonStates.enabled, buttonLook.button, buttonLook.lookFilled, buttonLook.colorBrand, buttonLook.grow].filter(Boolean).join(" ");
+    })();
+
+    const showBtn = React.createElement("div", { style: { paddingTop: 8, display: "flex", justifyContent: "flex-end" } },
+      React.createElement("button", { className: btnClass, style: { minWidth: "180px" }, onClick: () => {
+        const notificationsToShow = (this.notifications || []).slice(-this.displayLimit).map(n => ({ ...n }));
+        this._createLargeModal(notificationsToShow);
+      } }, i18n.showNotifications)
+    );
+
+    return UI.buildSettingsPanel({
+      settings: [
+        { type: "switch", id: "enabled", name: i18n.toggle, value: this.enabled },
+        { type: "slider", id: "displayLimit", name: i18n.sliderTitle, note: "", value: this.displayLimit, min: 3, max: 100 },
+        { type: "custom", id: "showNotifications", name: "", children: showBtn }
+      ],
+      onChange: (_cat, id, value) => {
+        if (id === "enabled") { this.enabled = !!value; BdApi.Data.save("PingLogger", "enabled", this.enabled); }
+        if (id === "displayLimit") { this.displayLimit = Number(value); BdApi.Data.save("PingLogger", "displayLimit", this.displayLimit); }
+      }
+    });
   }
 }
 
 module.exports = PingLogger;
-
