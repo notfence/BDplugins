@@ -1,7 +1,7 @@
 # PingLogger
 versions:
-* 1.1.1 beta1 (latest build)
-* 1.1.0 Legacy (latest stable build)
+* 1.1.1 beta2 (latest build)
+* 1.1.0 Legacy (currently dead because of BD update)
 
 # Features
   * Logs any messages in which you are mentioned (except @everyone and role mentioning)
