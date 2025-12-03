@@ -1,5 +1,5 @@
 # PingChecker
-version v1.0.2
+version 1.0.2
 # Features
   * A simple plugin to check your ping, replies to chat with embed message and read for client only
 
