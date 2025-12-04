@@ -27,7 +27,7 @@ To start logging messages just turn on the plugin and leave it. It collect messa
 
 
 # Preview
-![image](https://github.com/user-attachments/assets/84fc8d9e-f50c-4ec3-b4e2-c1f812169fd2) ![pinglogger](https://github.com/user-attachments/assets/126655c4-7b53-4dbb-8cb7-8090debb05d5)
+![image](https://github.com/user-attachments/assets/27527567-0ad1-4ab5-bd2a-782c90a19025) ![pinglogger](https://github.com/user-attachments/assets/d491901c-90b7-46de-b7b7-3a2aa0c76d8d)
 
 # TO DO
 *
