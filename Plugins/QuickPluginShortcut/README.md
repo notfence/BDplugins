@@ -12,7 +12,7 @@ version 1.0.0
 
 
 # Preview
-
+![QuickPluginShortcutSettings](https://github.com/user-attachments/assets/a9d3bcaa-1659-4681-b234-76ddfd960058) ![keybinding](https://github.com/user-attachments/assets/e1ba53cd-168d-4a51-9c8f-b1f184fe7eea)
 # TO DO
 *
 
