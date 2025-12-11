@@ -9,7 +9,7 @@ version 1.3.2
   * Stays persist after reloading Discord
   * Support Multi-language (RU, EN)
   * A slider that allows you to adjust the number of notifications to display
-  * Local account name (it detects current user of Discord, fetch it and save it to config
+  * Local account name (it detects current user of Discord, fetch it and save it to config)
   * Timestamps
   * Remembers where the ping came from (DMs, Group DMs, Server)
   * Click to DMs or Group DMs or Server to jump to message
