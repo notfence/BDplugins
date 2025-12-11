@@ -1,8 +1,8 @@
 # PingLogger
-version 1.3.1
+version 1.3.2
 
 # Features
-  * Logs any messages in which you are mentioned (from 1.3.0 including @everyone and role mentioning)
+  * Logs any messages in which you are mentioned (from 1.3.0 including @everyone, @here and role mentioning)
   * Tap to sender name to copy his ID
   * Copy logged message directly from plugin
   * Up to 100 logged messages
@@ -17,6 +17,7 @@ version 1.3.1
 To start logging messages just turn on the plugin and leave it. It collect messages even you're afk
 
 # Changelog
+* (v1.3.2) - fixed crash when user was trying to jump to a message (due to Discord update); fixed @everyone and @here doesn't work in DMs (idk why i fixed it)
 * (v1.3.1) - fixed self ping issue
 * (v1.3.0) - translation logic fixed; timestamp format fixed; fixed minor visial bugs in modal window; added support for @everyone and role mentioning; added server name in notifications
 * (v1.2.0) - huge improve to new modal window (notification window): copy messages + timestamps + improved UI + local account name. Rework of settings page. Code optimisation
@@ -33,6 +34,6 @@ To start logging messages just turn on the plugin and leave it. It collect messa
 *
 
 # Issues
-* 
+*
 
 If you found more, feel free to report on [Issues page](https://github.com/notfence/BDplugins/issues)!

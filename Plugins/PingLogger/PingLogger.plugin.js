@@ -1,7 +1,7 @@
 /**
  * @name PingLogger
- * @version 1.3.1
- * @description Logs any messages in which you are mentioned including @everyone and role mentioning
+ * @version 1.3.2
+ * @description Logs any messages in which you are mentioned including @everyone, @here and role mentioning
  * @author notfence
  * @authorId 1176524761686364226
  * @source https://github.com/notfence/BDplugins/tree/main/Plugins/PingLogger
@@ -31,7 +31,7 @@ const base = {
   groupDmLabel: "Group DMs",
   serverLabelPrefix: "Server name: ",
   goToMessage: "Jump to message",
-  fetchEveryoneAndRoles: "Fetch @everyone and role mentions"
+  fetchEveryoneAndRoles: "Fetch @everyone, @here and role mentions"
 };
 
 const ru = {
@@ -57,7 +57,7 @@ const ru = {
   groupDmLabel: "Групповые сообщения",
   serverLabelPrefix: "Сервер: ",
   goToMessage: "Перейти к сообщению",
-  fetchEveryoneAndRoles: "Логировать @everyone и упоминания ролей"
+  fetchEveryoneAndRoles: "Логировать @everyone, @here и упоминания ролей"
 };
 
 const translations = { en: base, ru: Object.assign({}, base, ru) };
@@ -195,16 +195,15 @@ class PingLogger {
 
     this._closeOtherDialogs = () => {
       try {
-        document.querySelectorAll('[aria-modal="true"]').forEach(el => { try { el.remove(); } catch {} });
-        document.querySelectorAll('.layer-3JKvBn, .backdrop-1WG7uL, .modal-3zV5v4, .modal-2C4O6P, .backdrop-2kV7oH, .backdrop-2Gk4, .backdrop-2EY0G')
-          .forEach(el => { try { el.remove(); } catch {} });
-        document.querySelectorAll('[role="dialog"] button[aria-label="Close"]').forEach(b => { try { b.click(); } catch {} });
-        document.querySelectorAll('div[class*="backdrop"], div[class*="modal"], [data-modal-id]').forEach(el => { try { el.click(); } catch {} });
-
         const escDown = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true });
         const escUp = new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true });
         document.dispatchEvent(escDown);
         document.dispatchEvent(escUp);
+
+        document.querySelectorAll('[role="dialog"] button[aria-label="Close"]').forEach(b => { try { b.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch {} });
+
+        document.querySelectorAll('[data-modal-id], .layer-3JKvBn, .backdrop-1WG7uL, .modal-3zV5v4, .modal-2C4O6P, .backdrop-2kV7oH, .backdrop-2Gk4, .backdrop-2EY0G')
+          .forEach(el => { try { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch {} });
 
         document.querySelectorAll('body > div').forEach(div => {
           try {
@@ -212,17 +211,17 @@ class PingLogger {
             const bg = (style.backgroundColor || style.background || '').toLowerCase();
             const z = parseInt(style.zIndex) || 0;
             if ((bg.includes('rgba(0, 0, 0') || bg.includes('rgba(0,0,0') || bg.includes('black')) && z >= 1000) {
-              div.remove();
+              if (div.parentNode && div.parentNode.contains(div)) div.parentNode.removeChild(div);
             }
           } catch (e) {}
         });
 
         setTimeout(() => {
           try {
-            document.querySelectorAll('[aria-modal="true"]').forEach(el => { try { el.remove(); } catch {} });
-            document.querySelectorAll('.layer-3JKvBn, .backdrop-1WG7uL, .modal-3zV5v4, .modal-2C4O6P').forEach(el => { try { el.remove(); } catch {} });
-            document.dispatchEvent(escDown);
-            document.dispatchEvent(escUp);
+            const escDown2 = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true });
+            const escUp2 = new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true });
+            document.dispatchEvent(escDown2);
+            document.dispatchEvent(escUp2);
           } catch (e) {}
         }, 50);
 
@@ -267,8 +266,12 @@ class PingLogger {
           } catch {}
         }
 
-        const isEveryoneMention = Boolean(message.mention_everyone);
+        let isEveryoneMention = Boolean(message.mention_everyone);
         let isRoleMention = false;
+        try {
+          const contentForEveryone = (typeof message.content === 'string' && message.content) || (typeof message.cleanContent === 'string' && message.cleanContent) || '';
+          if (!isEveryoneMention && contentForEveryone && (contentForEveryone.includes('@everyone') || contentForEveryone.includes('@here'))) isEveryoneMention = true;
+        } catch {}
 
         try {
           const rawGuildId = message.guild_id || message.guildId || message.guild?.id || null;
@@ -311,7 +314,7 @@ class PingLogger {
         } catch {}
 
         try {
-          if (processedText) processedText = processedText.replace(/<@&\d+>/g, "@role");
+          if (processedText) processedText = processedText.replace(new RegExp('<@&[0-9]+>', 'g'), "@role");
         } catch {}
 
         try {
