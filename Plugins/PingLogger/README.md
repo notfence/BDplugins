@@ -1,5 +1,5 @@
 # PingLogger
-version 1.3.2
+version 1.3.3
 
 # Features
   * Logs any messages in which you are mentioned (from 1.3.0 including @everyone, @here and role mentioning)
@@ -17,6 +17,7 @@ version 1.3.2
 To start logging messages just turn on the plugin and leave it. It collect messages even you're afk
 
 # Changelog
+* (v1.3.3) - added autoupdate checker
 * (v1.3.2) - fixed crash when user was trying to jump to a message (due to Discord update); fixed @everyone and @here doesn't work in DMs (idk why i fixed it)
 * (v1.3.1) - fixed self ping issue
 * (v1.3.0) - translation logic fixed; timestamp format fixed; fixed minor visial bugs in modal window; added support for @everyone and role mentioning; added server name in notifications
