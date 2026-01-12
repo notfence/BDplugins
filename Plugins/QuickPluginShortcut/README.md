@@ -1,5 +1,5 @@
 # QuickPluginShortcut
-version 1.0.0
+version 1.0.1
 
 # Features
   * Allows you to bind almost any combination for opening BetterDiscord plugins page
@@ -7,6 +7,7 @@ version 1.0.0
   * Change position of that mini window
   
 # Changelog
+* (v1.0.1) - added autoupdate checker
 * (v1.0.0) - initial release
 
 
