@@ -72,7 +72,7 @@ const i18n = new Proxy({}, {
 });
 class PingLogger {
   constructor(meta){
-    this.meta = meta || { name: "PingLogger", version: "1.3.2" };
+    this.meta = meta;
     this.enabled = BdApi.Data.load("PingLogger", "enabled");
     if (this.enabled === undefined || this.enabled === null) this.enabled = true;
     this.notifications = BdApi.Data.load("PingLogger", "notifications") || [];
