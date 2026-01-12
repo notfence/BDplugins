@@ -4,7 +4,7 @@ A collection of mine (not) plugins for BetterDiscord
 WARNING ALL PLUGINS FOR 90% MADE BY AI!
 # Current plugin list
   * [PingLogger](https://github.com/notfence/BDplugins/tree/main/Plugins/PingLogger) v1.3.2
-  * [ParanoicVC](https://github.com/notfence/BDplugins/tree/main/Plugins/ParanoicVC) v1.0.2 (40)
+  * [ParanoicVC](https://github.com/notfence/BDplugins/tree/main/Plugins/ParanoicVC) v1.0.3
   * [PingChecker](https://github.com/notfence/BDplugins/tree/main/Plugins/PingChecker) v1.0.2
   * [QuickPluginShortcut](https://github.com/notfence/BDplugins/tree/main/Plugins/QuickPluginShortcut) v1.0.1
 

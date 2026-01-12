@@ -1,5 +1,5 @@
 # ParanoicVC
-version 1.0.2 (build 40)
+version 1.0.3
 # Features
   * Shows a confirmation window when trying to connect to a voice channel.
   * Remembers saved channels (by clicking "Do not ask again for this channel").
@@ -7,6 +7,7 @@ version 1.0.2 (build 40)
   * Support Multi-language (RU, EN)
 
 # Changelog
+* (v1.0.3) - added autoupdate checker
 * (v1.0.2) - minor translation fixes
 * (v1.0.1) - minor translation fixes, added authorId
 * (v1.0.0) - initial release

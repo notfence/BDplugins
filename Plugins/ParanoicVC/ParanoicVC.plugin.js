@@ -1,19 +1,22 @@
 /**
  * @name ParanoicVC
- * @version 1.0.2 (40)
+ * @version 1.0.3
  * @description Shows a confirmation window when trying to connect to a voice/stage channel.
  * @author notfence
  * @authorId 1176524761686364226
  * @source https://github.com/notfence/BDplugins/tree/main/Plugins/ParanoicVC
+ * @updateurl https://raw.githubusercontent.com/notfence/BDplugins/refs/heads/main/Plugins/ParanoicVC/update/update.js
  */
 const { Webpack, Data, UI, Patcher, React, DOM } = BdApi;
 
 class ParanoicVC {
   constructor(meta) {
     this.meta = meta;
-    this.defaultSettings = { enabled: true, ignored: [] };
-    this.settings = Object.assign({}, this.defaultSettings, Data.load(this.meta.name, "settings"));
-
+    this.defaultSettings = { enabled: true, ignored: [], checkUpdates: true };
+    this.settings = Object.assign({}, this.defaultSettings, Data.load(this.meta.name, "settings") || {});
+    this.updateUrl = this.meta && (this.meta.updateurl || this.meta.updateUrl || this.meta.updateURL);
+    this.sourceUrl = this.meta && (this.meta.source || this.meta.sourceUrl || this.meta.sourceURL);
+    this._updateChecked = false;
     this.translations = {
       en: {
         pluginName: "ParanoicVC",
@@ -27,7 +30,9 @@ class ParanoicVC {
         resetChannelsName: "Reset Saved Channels",
         resetChannelsNote: "Clears channels for which you selected “Don't ask again”.",
         resetButtonLabel: "Reset",
-        resetDone: "Ignored channels cleared."
+        resetDone: "Ignored channels cleared.",
+		autoupdateenbl: "Check for updates on start",
+		autoupdateenblNote: "Automatically check for plugin updates when Discord starts."
       },
       ru: {
         pluginName: "ParanoicVC",
@@ -41,11 +46,11 @@ class ParanoicVC {
         resetChannelsName: "Сброс сохранённых каналов",
         resetChannelsNote: "Очищает список каналов, для которых выбрано «Больше не спрашивать».",
         resetButtonLabel: "Очистить",
-        resetDone: "Список игнорируемых каналов очищен."
+        resetDone: "Список игнорируемых каналов очищен.",
+		autoupdateenbl: "Проверка наличия обновлений при запуске",
+		autoupdateenblNote: "Автоматически проверять наличие обновлений плагина при запуске Discord."
       }
     };
-
-    // Защита: в некоторых окружениях console может быть переопределён.
     this._log = (...args) => { try { window.console && window.console.log && window.console.log(...args); } catch (_) {} };
     this._warn = (...args) => { try { window.console && window.console.warn && window.console.warn(...args); } catch (_) {} };
     this._error = (...args) => { try { window.console && window.console.error && window.console.error(...args); } catch (_) {} };
@@ -101,6 +106,8 @@ class ParanoicVC {
     } else {
       this._log(`[ParanoicVC] Patched methods: ${this._patched.map(p => p.name).join(", ")}`);
     }
+
+    if (this.settings.checkUpdates) this.checkForUpdates().catch(()=>{});
 
     this._log(`[ParanoicVC] Plugin loaded.`);
   }
@@ -173,15 +180,72 @@ class ParanoicVC {
     return UI.buildSettingsPanel({
       settings: [
         { type: "switch", id: "enabled", name: t.enablePlugin, note: t.enablePluginNote, value: this.settings.enabled },
+        { type: "switch", id: "checkUpdates", name: t.autoupdateenbl, note: t.autoupdateenblNote, value: this.settings.checkUpdates },
         { type: "custom", id: "resetIgnored", name: t.resetChannelsName, note: t.resetChannelsNote, children: resetRow }
       ],
       onChange: (_cat, id, value) => {
         if (id === "enabled") { this.settings.enabled = !!value; this._save(); }
+        if (id === "checkUpdates") { this.settings.checkUpdates = !!value; Data.save(this.meta.name, "settings", this.settings); }
       }
     });
   }
+
+  async checkForUpdates(){
+    if(this._updateChecked) return;
+    this._updateChecked = true;
+    const currentVersion = this.meta && this.meta.version ? String(this.meta.version).trim() : "0.0.0";
+    const url = this.updateUrl;
+    if(!url) return;
+    try{
+      const resp = await fetch(url, { cache: "no-store" });
+      if(!resp.ok) return;
+      const text = await resp.text();
+      let m = text.match(/@version\s*v?([0-9]+(?:\.[0-9]+)*)/i);
+      if(!m){
+        const commentMatch = text.match(/\/\*\*[\s\S]*?\*\//);
+        if(commentMatch) m = commentMatch[0].match(/@version\s*v?([0-9]+(?:\.[0-9]+)*)/i);
+      }
+      if(!m || !m[1]) return;
+      const remoteVersion = m[1].trim();
+      if(this._isRemoteNewer(currentVersion, remoteVersion)) this._showUpdateModal(remoteVersion, currentVersion);
+    }catch(e){
+      try{ this._warn("[ParanoicVC] update check failed:", e); }catch(e2){}
+    }
+  }
+
+  _isRemoteNewer(localVer, remoteVer){
+    const parse = v => String(v).replace(/^v/i,"").split(".").map(s=>parseInt(s.replace(/\D.*$/,"")||"0",10));
+    const a = parse(localVer), b = parse(remoteVer);
+    const len = Math.max(a.length, b.length, 3);
+    for(let i=0;i<len;i++){
+      const ai = a[i] || 0;
+      const bi = b[i] || 0;
+      if(bi > ai) return true;
+      if(bi < ai) return false;
+    }
+    return false;
+  }
+
+  _showUpdateModal(remoteVersion, localVersion){
+    const title = "Plugin Update Available";
+    const content = React.createElement("div", { style: { lineHeight: "1.4" } },
+      React.createElement("div", null, `A new version of the plugin "${this.meta.name}" is available.`),
+      React.createElement("div", { style: { marginTop: 8 } }, `Installed: ${localVersion}`),
+      React.createElement("div", null, `Available: ${remoteVersion}`),
+      React.createElement("div", { style: { marginTop: 10, color: "var(--text-muted)" } }, "Open the plugin page?")
+    );
+    try{
+      if(UI && typeof UI.showConfirmationModal === "function"){
+        UI.showConfirmationModal(title, content, {
+          confirmText: "Open",
+          cancelText: "Cancel",
+          onConfirm: ()=>{ try{ window.open(this.sourceUrl, "_blank"); }catch{} }
+        });
+        return;
+      }
+    }catch{}
+    if(window.confirm(`New version ${remoteVersion} is available. Open plugin page?`)) try{ window.open(this.sourceUrl, "_blank"); }catch{}
+  }
 }
 
-
 module.exports = ParanoicVC;
-
